@@ -1,6 +1,5 @@
 package com.xuzl.myeasyexcel.handler;
 
-import com.xuzl.myeasyexcel.common.EXTExecuteParam;
 
 /**
  * @author xuzl
@@ -11,12 +10,12 @@ import com.xuzl.myeasyexcel.common.EXTExecuteParam;
  */
 public class DefaultExcelHandler<T> implements EXTExcelHandler<T>{
     @Override
-    public String fileName(EXTExecuteParam<T> param) {
+    public String fileName(T param) {
         return null;
     }
 
     @Override
-    public String templateName(EXTExecuteParam<T> param) {
+    public String templateName(T param) {
         return null;
     }
 }

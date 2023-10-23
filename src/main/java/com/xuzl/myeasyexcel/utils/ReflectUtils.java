@@ -16,7 +16,11 @@
  */
 package com.xuzl.myeasyexcel.utils;
 
-import org.ehcache.impl.internal.classes.commonslang.reflect.MethodUtils;
+import javassist.CtClass;
+import javassist.CtConstructor;
+import javassist.CtMethod;
+import javassist.NotFoundException;
+import org.apache.commons.beanutils.MethodUtils;
 
 import java.beans.BeanInfo;
 import java.beans.Introspector;
@@ -229,31 +233,6 @@ public final class ReflectUtils {
     }
 
     /**
-     * 获取属性（含父类）
-     * @param clazz
-     * @param fieldName
-     * @return
-     */
-    public static Field getField(Class<?> clazz, String fieldName) {
-        return findField(clazz, fieldName, 0);
-    }
-
-    private static Field findField(Class<?> clazz, String fieldName,int deep) {
-        if (deep > 5) {
-            return null;
-        }
-
-        if (clazz == null) {
-            return null;
-        }
-        try {
-            return clazz.getDeclaredField(fieldName);
-        } catch (NoSuchFieldException e) {
-            return findField(clazz.getSuperclass(), fieldName, deep + 1);
-        }
-    }
-
-    /**
      * get name.
      * java.lang.Object[][].class => "java.lang.Object[][]"
      *
@@ -375,6 +354,7 @@ public final class ReflectUtils {
      *
      * @param c class.
      * @return desc.
+     * @throws NotFoundException
      */
     public static String getDesc(Class<?> c) {
         StringBuilder ret = new StringBuilder();
@@ -419,6 +399,7 @@ public final class ReflectUtils {
      *
      * @param cs class array.
      * @return desc.
+     * @throws NotFoundException
      */
     public static String getDesc(final Class<?>[] cs) {
         if (cs.length == 0) {
@@ -488,6 +469,101 @@ public final class ReflectUtils {
         StringBuilder ret = new StringBuilder();
         ret.append('(');
         Class<?>[] parameterTypes = m.getParameterTypes();
+        for (int i = 0; i < parameterTypes.length; i++) {
+            ret.append(getDesc(parameterTypes[i]));
+        }
+        ret.append(')').append(getDesc(m.getReturnType()));
+        return ret.toString();
+    }
+
+    /**
+     * get class desc.
+     * Object.class => "Ljava/lang/Object;"
+     * boolean[].class => "[Z"
+     *
+     * @param c class.
+     * @return desc.
+     * @throws NotFoundException
+     */
+    public static String getDesc(final CtClass c) throws NotFoundException {
+        StringBuilder ret = new StringBuilder();
+        if (c.isArray()) {
+            ret.append('[');
+            ret.append(getDesc(c.getComponentType()));
+        } else if (c.isPrimitive()) {
+            String t = c.getName();
+            if ("void".equals(t)) {
+                ret.append(JVM_VOID);
+            } else if ("boolean".equals(t)) {
+                ret.append(JVM_BOOLEAN);
+            } else if ("byte".equals(t)) {
+                ret.append(JVM_BYTE);
+            } else if ("char".equals(t)) {
+                ret.append(JVM_CHAR);
+            } else if ("double".equals(t)) {
+                ret.append(JVM_DOUBLE);
+            } else if ("float".equals(t)) {
+                ret.append(JVM_FLOAT);
+            } else if ("int".equals(t)) {
+                ret.append(JVM_INT);
+            } else if ("long".equals(t)) {
+                ret.append(JVM_LONG);
+            } else if ("short".equals(t)) {
+                ret.append(JVM_SHORT);
+            }
+        } else {
+            ret.append('L');
+            ret.append(c.getName().replace('.', '/'));
+            ret.append(';');
+        }
+        return ret.toString();
+    }
+
+    /**
+     * get method desc.
+     * "do(I)I", "do()V", "do(Ljava/lang/String;Z)V"
+     *
+     * @param m method.
+     * @return desc.
+     */
+    public static String getDesc(final CtMethod m) throws NotFoundException {
+        StringBuilder ret = new StringBuilder(m.getName()).append('(');
+        CtClass[] parameterTypes = m.getParameterTypes();
+        for (CtClass parameterType : parameterTypes) {
+            ret.append(getDesc(parameterType));
+        }
+        ret.append(')').append(getDesc(m.getReturnType()));
+        return ret.toString();
+    }
+
+    /**
+     * get constructor desc.
+     * "()V", "(Ljava/lang/String;I)V"
+     *
+     * @param c constructor.
+     * @return desc
+     */
+    public static String getDesc(final CtConstructor c) throws NotFoundException {
+        StringBuilder ret = new StringBuilder("(");
+        CtClass[] parameterTypes = c.getParameterTypes();
+        for (int i = 0; i < parameterTypes.length; i++) {
+            ret.append(getDesc(parameterTypes[i]));
+        }
+        ret.append(')').append('V');
+        return ret.toString();
+    }
+
+    /**
+     * get method desc.
+     * "(I)I", "()V", "(Ljava/lang/String;Z)V".
+     *
+     * @param m method.
+     * @return desc.
+     */
+    public static String getDescWithoutMethodName(final CtMethod m) throws NotFoundException {
+        StringBuilder ret = new StringBuilder();
+        ret.append('(');
+        CtClass[] parameterTypes = m.getParameterTypes();
         for (int i = 0; i < parameterTypes.length; i++) {
             ret.append(getDesc(parameterTypes[i]));
         }
@@ -1335,5 +1411,30 @@ public final class ReflectUtils {
         }
 
         return cl;
+    }
+
+    /**
+     * 获取属性（含父类）
+     * @param clazz
+     * @param fieldName
+     * @return
+     */
+    public static Field getField(Class<?> clazz, String fieldName) {
+        return findField(clazz, fieldName, 0);
+    }
+
+    private static Field findField(Class<?> clazz, String fieldName,int deep) {
+        if (deep > 5) {
+            return null;
+        }
+
+        if (clazz == null) {
+            return null;
+        }
+        try {
+            return clazz.getDeclaredField(fieldName);
+        } catch (NoSuchFieldException e) {
+            return findField(clazz.getSuperclass(), fieldName, deep + 1);
+        }
     }
 }

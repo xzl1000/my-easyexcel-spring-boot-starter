@@ -1,8 +1,6 @@
 package com.xuzl.myeasyexcel.handler;
 
 
-import com.xuzl.myeasyexcel.common.EXTExecuteParam;
-
 import java.util.List;
 
 /**
@@ -17,18 +15,18 @@ public interface EXTExcelSheetHandler<T> {
      * 动态sheet名称
      * @return
      */
-    String sheetName(EXTExecuteParam<T> param);
+    String sheetName(T param);
 
     /**
      * 自定义表头
      * @return
      */
-    List<List<String>> head(EXTExecuteParam<T> param);
+    List<List<String>> head(T param);
 
     /**
      * 动态表头类
      */
-    Class<?> headClass(EXTExecuteParam<T> param);
+    Class<?> headClass(T param);
 
 
 }

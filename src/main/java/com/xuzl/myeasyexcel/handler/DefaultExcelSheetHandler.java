@@ -1,6 +1,5 @@
 package com.xuzl.myeasyexcel.handler;
 
-import com.xuzl.myeasyexcel.common.EXTExecuteParam;
 
 import java.util.List;
 
@@ -13,17 +12,17 @@ import java.util.List;
  */
 public class DefaultExcelSheetHandler<T> implements EXTExcelSheetHandler<T> {
     @Override
-    public String sheetName(EXTExecuteParam<T> param) {
+    public String sheetName(T param) {
         return null;
     }
 
     @Override
-    public List<List<String>> head(EXTExecuteParam<T> param) {
+    public List<List<String>> head(T param) {
         return null;
     }
 
     @Override
-    public Class<?> headClass(EXTExecuteParam<T> param) {
+    public Class<?> headClass(T param) {
         return null;
     }
 }

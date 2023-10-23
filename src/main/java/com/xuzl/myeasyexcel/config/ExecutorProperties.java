@@ -5,15 +5,15 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 /**
  * @author xuzl
  * @version 1.0.0
- * @ClassName IMTExecutorProperties.java
+ * @ClassName ExecutorProperties.java
  * @Description TODO
- * @createTime 2023-05-15 18:27
+ * @createTime 2023-10-12 10:19
  */
-@ConfigurationProperties(prefix = "poi.excel.imt")
-public class IMTExecutorProperties {
-    private boolean enable;
-
+@ConfigurationProperties(prefix = "myeasyexcel")
+public class ExecutorProperties {
     private String scanPackage;
+
+    private String rootPath;
 
     public String getScanPackage() {
         return scanPackage;
@@ -23,12 +23,11 @@ public class IMTExecutorProperties {
         this.scanPackage = scanPackage;
     }
 
-    public boolean isEnable() {
-        return enable;
+    public String getRootPath() {
+        return rootPath;
     }
 
-    public void setEnable(boolean enable) {
-        this.enable = enable;
+    public void setRootPath(String rootPath) {
+        this.rootPath = rootPath;
     }
-
 }

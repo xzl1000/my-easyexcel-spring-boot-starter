@@ -11,9 +11,9 @@ import java.util.List;
  */
 public class InvokerResult {
     private boolean success;
-    private List<BaseModel> failList;
+    private List<FailRow> failList;
 
-    private InvokerResult(boolean success, List<BaseModel> failList) {
+    private InvokerResult(boolean success, List<FailRow> failList) {
         this.success = success;
         this.failList = failList;
     }
@@ -26,7 +26,7 @@ public class InvokerResult {
         return new InvokerResult(success);
     }
 
-    public static InvokerResult result(boolean success, List<BaseModel> failList) {
+    public static InvokerResult result(boolean success, List<FailRow> failList) {
         return new InvokerResult(success,failList);
     }
 
@@ -38,11 +38,11 @@ public class InvokerResult {
         this.success = success;
     }
 
-    public List<BaseModel> getFailList() {
+    public List<FailRow> getFailList() {
         return failList;
     }
 
-    public void setFailList(List<BaseModel> failList) {
+    public void setFailList(List<FailRow> failList) {
         this.failList = failList;
     }
 }

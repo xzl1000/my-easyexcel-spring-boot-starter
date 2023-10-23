@@ -1,6 +1,5 @@
 package com.xuzl.myeasyexcel.annotation;
 
-
 import com.xuzl.myeasyexcel.handler.DefaultExcelHandler;
 import com.xuzl.myeasyexcel.handler.EXTExcelHandler;
 
@@ -24,6 +23,11 @@ public @interface EXTExcel {
     // 文件名称
     String fileName() default "";
 
+    /**
+     * 1-异步，2-同步
+     */
+    int type() default 2;
+
     // 是否携带日期后缀
     boolean withDateSuffix() default false;
 
@@ -35,5 +39,9 @@ public @interface EXTExcel {
 
     // 自定义拦截器
     Class<? extends EXTExcelHandler> handler() default DefaultExcelHandler.class;
+    /**
+     * 任务最大线程数
+     */
+    int maxActiveThread() default 10;
 
 }

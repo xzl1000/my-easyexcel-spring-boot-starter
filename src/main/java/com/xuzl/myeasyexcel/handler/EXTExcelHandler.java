@@ -1,6 +1,5 @@
 package com.xuzl.myeasyexcel.handler;
 
-import com.xuzl.myeasyexcel.common.EXTExecuteParam;
 
 /**
  * @author xuzl
@@ -16,14 +15,14 @@ public interface EXTExcelHandler<T> {
      * @param param
      * @return
      */
-    String fileName(EXTExecuteParam<T> param);
+    String fileName(T param);
 
     /**
      * 动态模板名称
      * @param param
      * @return
      */
-    String templateName(EXTExecuteParam<T> param);
+    String templateName(T param);
 
 
 

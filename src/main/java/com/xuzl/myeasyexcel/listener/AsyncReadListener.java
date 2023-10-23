@@ -5,7 +5,7 @@ import com.alibaba.excel.exception.ExcelDataConvertException;
 import com.alibaba.excel.read.metadata.holder.ReadRowHolder;
 import com.alibaba.excel.util.ListUtils;
 import com.xuzl.myeasyexcel.common.BaseModel;
-import com.xuzl.myeasyexcel.common.FailRowInfo;
+import com.xuzl.myeasyexcel.common.FailRow;
 import com.xuzl.myeasyexcel.common.InvokerResult;
 import org.apache.commons.collections4.CollectionUtils;
 import org.springframework.context.MessageSource;
@@ -25,10 +25,10 @@ import java.util.function.Function;
 public class AsyncReadListener<T extends BaseModel> extends I18nAnalysisListener<T> {
     public static int BATCH_COUNT = 100;
     private List<T> cachedDataList;
-    private List<FailRowInfo> cachedFailList;
+    private List<FailRow> cachedFailList;
     private final Function<List<T>, InvokerResult> readFunction;
 
-    private final Consumer<List<FailRowInfo>> failConsumer;
+    private final Consumer<List<FailRow>> failConsumer;
 
     private final Consumer<Integer> progressConsumer;
     private final int batchCount;
@@ -58,11 +58,11 @@ public class AsyncReadListener<T extends BaseModel> extends I18nAnalysisListener
      * @param failConsumer
      * @param batchCount
      */
-    public AsyncReadListener(Function<List<T>,InvokerResult> readFunction, Consumer<List<FailRowInfo>> failConsumer, int batchCount, MessageSource messageSource, Locale locale, Class<T> clazz) {
+    public AsyncReadListener(Function<List<T>,InvokerResult> readFunction, Consumer<List<FailRow>> failConsumer, int batchCount, MessageSource messageSource, Locale locale, Class<T> clazz) {
         this(readFunction, failConsumer,null, batchCount, messageSource, locale, clazz);
     }
 
-    public AsyncReadListener(Function<List<T>,InvokerResult> readFunction, Consumer<List<FailRowInfo>> failConsumer, Consumer<Integer> progressConsumer, int batchCount, MessageSource messageSource, Locale locale, Class<T> clazz) {
+    public AsyncReadListener(Function<List<T>,InvokerResult> readFunction, Consumer<List<FailRow>> failConsumer, Consumer<Integer> progressConsumer, int batchCount, MessageSource messageSource, Locale locale, Class<T> clazz) {
         super(messageSource, locale, clazz);
         this.cachedDataList = ListUtils.newArrayListWithExpectedSize(BATCH_COUNT);
         this.cachedFailList = ListUtils.newArrayListWithExpectedSize(BATCH_COUNT);
@@ -78,13 +78,13 @@ public class AsyncReadListener<T extends BaseModel> extends I18nAnalysisListener
         totalRowsCount =  Math.max(totalRowsCount, context.readRowHolder().getRowIndex()-context.readSheetHolder().getHeadRowNumber()+1);
 
         if (failConsumer!=null && exception instanceof ExcelDataConvertException) {
-            FailRowInfo failRowInfo = new FailRowInfo();
+            FailRow failRowInfo = new FailRow();
             failRowInfo.setRowNum((long)((ExcelDataConvertException) exception).getRowIndex());
             failRowInfo.setColumnNum((long)((ExcelDataConvertException) exception).getColumnIndex());
             failRowInfo.setCellData(((ExcelDataConvertException) exception).getCellData());
             this.cachedFailList.add(failRowInfo);
 
-            if (this.cachedFailList.size() >= this.batchCount) {
+            if (this.batchCount >0 &&this.cachedFailList.size() >= this.batchCount) {
                 this.failConsumer.accept(this.cachedFailList);
                 this.cachedFailList = ListUtils.newArrayListWithExpectedSize(this.batchCount);
             }
@@ -106,9 +106,18 @@ public class AsyncReadListener<T extends BaseModel> extends I18nAnalysisListener
             }
             InvokerResult result = this.readFunction.apply(this.cachedDataList);
             // 根据返回结果判断是否继续读取
-            if (result != null && !result.isSuccess()) {
-                this.cancel();
-                return;
+            if (result != null) {
+                if (!result.isSuccess()){
+                    this.cancel();
+                    return;
+                }
+                // 处理失败数据
+                this.cachedFailList.addAll(result.getFailList());
+                if (this.cachedFailList.size() >= this.batchCount) {
+                    this.failConsumer.accept(this.cachedFailList);
+                    this.cachedFailList = ListUtils.newArrayListWithExpectedSize(this.batchCount);
+                }
+
             }
             this.cachedDataList = ListUtils.newArrayListWithExpectedSize(this.batchCount);
         }
@@ -120,7 +129,12 @@ public class AsyncReadListener<T extends BaseModel> extends I18nAnalysisListener
             if (this.progressConsumer!=null) {
                 this.progressConsumer.accept(totalRowsCount);
             }
-            this.readFunction.apply(this.cachedDataList);
+            InvokerResult result = this.readFunction.apply(this.cachedDataList);
+            if (!result.isSuccess()){
+                return;
+            }
+            // 处理失败数据
+            this.cachedFailList.addAll(result.getFailList());
         }
         if (failConsumer!=null && CollectionUtils.isNotEmpty(this.cachedFailList)) {
             this.failConsumer.accept(this.cachedFailList);

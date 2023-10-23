@@ -1,6 +1,5 @@
 package com.xuzl.myeasyexcel.common;
 
-
 import java.io.Serializable;
 
 /**
@@ -17,7 +16,17 @@ public class ImtSubmit implements Serializable {
 
     private String executorName;
 
+    private Long executorId;
+
     private String params;
+
+    public Long getExecutorId() {
+        return executorId;
+    }
+
+    public void setExecutorId(Long executorId) {
+        this.executorId = executorId;
+    }
 
     public String getTaskDesc() {
         return taskDesc;

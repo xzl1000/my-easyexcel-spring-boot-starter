@@ -1,13 +1,12 @@
 package com.xuzl.myeasyexcel.utils;
 
 
-import com.xuzl.myeasyexcel.common.POICodeConstants;
+import com.shuabao.foundation.poi.common.POICodeConstants;
 
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.UUID;
 
 /**
@@ -19,9 +18,12 @@ import java.util.UUID;
  */
 public class FileUtil {
 
-    public static final String DEFAULT_DATE_FORMAT = "yyyy-MM-dd";
+    private static final SimpleDateFormat sdf = new SimpleDateFormat(POICodeConstants.DEFAULT_DATE_FORMAT);
 
-    public static final SimpleDateFormat sdf = new SimpleDateFormat(DEFAULT_DATE_FORMAT);
+    private static String getSystemDate() {
+        return sdf.format(System.currentTimeMillis());
+    }
+
     public static String createNewPdfFile(String rootPath,String filename){
 
         if (rootPath.endsWith(File.separator)) {
@@ -30,7 +32,7 @@ public class FileUtil {
 
         rootPath = rootPath
                 + File.separator + POICodeConstants.POI_ROOT_PATH
-                + File.separator + sdf.format(new Date())
+                + File.separator + getSystemDate()
                 + File.separator + UUID.randomUUID().toString().replace("-","");
         filename = filename + POICodeConstants.PDF_FILE_SUFFIX;
 
@@ -57,7 +59,7 @@ public class FileUtil {
         }
         rootPath = rootPath
                 + File.separator + POICodeConstants.POI_ROOT_PATH
-                + File.separator + sdf.format(new Date())
+                + File.separator + getSystemDate()
                 + File.separator + UUID.randomUUID().toString().replace("-", "");
         fileName = fileName + fileType;
 
@@ -69,7 +71,7 @@ public class FileUtil {
         return rootPath + File.separator + fileName;
     }
 
-    public static String createNewXlsxFile(String rootPath,String filename){
+    public static String createNewXlsxFile(String rootPath,String filename, Integer type){
 
         if (rootPath.endsWith(File.separator)) {
             rootPath = rootPath.substring(0, rootPath.length() - 1);
@@ -77,7 +79,8 @@ public class FileUtil {
 
         rootPath = rootPath
                 + File.separator + POICodeConstants.POI_ROOT_PATH
-                + File.separator + sdf.format(new Date())
+                + File.separator + (type==POICodeConstants.IMT_JOB_TYPE_ASYNC.intValue()?"async":"sync")
+                + File.separator + getSystemDate()
                 + File.separator + UUID.randomUUID().toString().replace("-","");
         filename = filename + POICodeConstants.XLSX_FILE_SUFFIX;
 

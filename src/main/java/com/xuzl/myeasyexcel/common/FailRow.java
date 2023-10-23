@@ -7,11 +7,17 @@ import java.io.Serializable;
 /**
  * @author xuzl
  * @version 1.0.0
- * @ClassName FailRowInfo.java
+ * @ClassName FailRow.java
  * @Description TODO
  * @createTime 2023-05-18 16:12
  */
-public class FailRowInfo implements Serializable {
+public class FailRow implements Serializable {
+
+    /**
+     * 任务id
+     */
+    private Long taskId;
+
     private Long rowNum;
     /**
      * 列号
@@ -55,5 +61,13 @@ public class FailRowInfo implements Serializable {
 
     public void setCellData(CellData<?> cellData) {
         this.cellData = cellData;
+    }
+
+    public Long getTaskId() {
+        return taskId;
+    }
+
+    public void setTaskId(Long taskId) {
+        this.taskId = taskId;
     }
 }

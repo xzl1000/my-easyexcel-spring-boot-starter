@@ -12,7 +12,7 @@ import java.io.Serializable;
  */
 public class EXTExecuteParam<T> implements Serializable {
     /**
-     * 请求参数
+     * 前端请求参数
      */
     private T params;
 

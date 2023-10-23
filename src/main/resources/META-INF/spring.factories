@@ -1,3 +1,2 @@
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-com.xuzl.myeasyexcel.config.EXTExcelExecutorConfiguration,\
-com.xuzl.myeasyexcel.config.IMTExecutorConfiguration
+com.xuzl.myeasyexcel.config.ExecutorAutoConfiguration

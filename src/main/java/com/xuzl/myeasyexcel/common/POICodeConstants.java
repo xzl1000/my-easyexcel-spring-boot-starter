@@ -44,6 +44,8 @@ public class POICodeConstants {
 
     public static final String POI_ROOT_PATH = "poi";
 
+    public static final String DEFAULT_DATE_FORMAT = "yyyy-MM-dd";
+
     /**
      * excel写入类型，0:写入 1:填充
      */
@@ -58,9 +60,11 @@ public class POICodeConstants {
     public static final String EXCEL_PROPERTIES_FIELD_NAME = "excelProperties";
     public static final String SHEETS_METHODS_FIELD_NAME = "sheetsMethods";
     public static final String MESSAGE_SOURCE_FIELD_NAME = "messageSource";
-    public static final String PARAM_CLAZZ_FIELD_NAME = "clazz";
+    public static final String PARAM_CLAZZ_FIELD_NAME = "tClazz";
     public static final String PAGE_NUMBER_FIELD_NAME = "pageNumberField";
     public static final String PAGE_SIZE_FIELD_NAME = "pageSizeField";
     public static final String IMT_PROPERTY_FIELD_NAME = "imtProperty";
+
+    public static final String THREAD_POOL = "threadPoolExecutor";
 
 }

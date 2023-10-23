@@ -7,16 +7,18 @@ import com.alibaba.excel.write.builder.ExcelWriterBuilder;
 import com.alibaba.excel.write.builder.ExcelWriterSheetBuilder;
 import com.alibaba.excel.write.metadata.WriteSheet;
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.TypeReference;
 import com.xuzl.myeasyexcel.annotation.EXTExcel;
 import com.xuzl.myeasyexcel.annotation.EXTExcelSheet;
-import com.xuzl.myeasyexcel.common.EXTExecuteParam;
 import com.xuzl.myeasyexcel.common.ExtSubmit;
 import com.xuzl.myeasyexcel.common.POICodeConstants;
+import com.xuzl.myeasyexcel.common.PoiTask;
 import com.xuzl.myeasyexcel.handler.EXTExcelHandler;
 import com.xuzl.myeasyexcel.handler.EXTExcelSheetHandler;
 import com.xuzl.myeasyexcel.handler.I18nCellWriteHandler;
 import com.xuzl.myeasyexcel.utils.FileUtil;
 import com.xuzl.myeasyexcel.utils.PlaceholderResolver;
+import com.xuzl.myeasyexcel.utils.TaskIdUtil;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 
@@ -27,6 +29,8 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadPoolExecutor;
 
 /**
  * @author xuzl
@@ -44,20 +48,74 @@ public abstract class EXTExcelBaseExecutor<T> {
 
     private MessageSource messageSource;
 
-    private Class<T> clazz;
-
     private Field pageNumberField;
 
     private Field pageSizeField;
 
-    public String process(ExtSubmit requestVO) {
+    private Class<T> tClazz;
+
+    private ThreadPoolExecutor threadPoolExecutor;
+
+    private ConcurrentHashMap<Long, PoiTask<T>> taskMap = new ConcurrentHashMap<>();
+
+    public String process(ExtSubmit requestVO){
         if (excelProperties == null){
             throw new RuntimeException("can not find annotation for " + this.getClass() + " !");
         }
+
+        PoiTask<T> task = transRequest2Task(requestVO);
+        task.setType(excelProperties.type());
+
+        if (excelProperties.type()==POICodeConstants.IMT_JOB_TYPE_SYNC){
+            // 同步
+            return doWrite(task);
+        }else if (excelProperties.type()== POICodeConstants.IMT_JOB_TYPE_ASYNC) {
+            // 异步
+            taskMap.put(task.getTaskId(),task);
+            // 放入任务队列
+            threadPoolExecutor.execute(new EXTThread(task.getTaskId()));
+            createTaskHook(task);
+            return task.getTaskId().toString();
+        }
+        return null;
+    }
+
+    private class EXTThread implements Runnable{
+
+        private final Long taskId;
+
+        public EXTThread(Long taskId) {
+            this.taskId = taskId;
+        }
+
+        @Override
+        public void run() {
+            // 执行导出
+            PoiTask<T> task = taskMap.get(taskId);
+            if (task == null){
+                throw new RuntimeException("can not find task for taskId: " + taskId + " !");
+            }
+
+            updateTaskStatus(taskId,POICodeConstants.IMT_TASK_STATUS_RUNNING);
+
+            try {
+                String filePath = doWrite(task);
+                task.setFilePath(filePath);
+                task.setFileName(filePath.substring(filePath.lastIndexOf("/")+1));
+                // 任务完成
+                finishTaskHook(task);
+            } catch (Exception e) {
+                e.printStackTrace();
+            } finally {
+                // 移除任务
+                taskMap.remove(taskId);
+            }
+        }
+    }
+
+    public String doWrite(PoiTask<T> task) {
+
         Locale locale = LocaleContextHolder.getLocale();
-        // 组装执行方法入参
-        EXTExecuteParam<T> param = new EXTExecuteParam<>();
-        param.setParams(JSON.parseObject(requestVO.getParams(), clazz));
 
         // 自定义拦截器
         Class<? extends EXTExcelHandler> handler = excelProperties.handler();
@@ -68,6 +126,8 @@ public abstract class EXTExcelBaseExecutor<T> {
             e.printStackTrace();
             throw new RuntimeException(e);
         }
+
+        T param = task.getExtend();
 
         String fileName = extExcelHandler.fileName(param);
         String templateName = extExcelHandler.templateName(param);
@@ -88,7 +148,7 @@ public abstract class EXTExcelBaseExecutor<T> {
         String realName = PlaceholderResolver.getDefaultResolver().resolveByRule(fileName,
                 (name) -> messageSource.getMessage(name, null, locale));
 
-        String newFilePath = FileUtil.createNewXlsxFile(rootPath, realName);
+        String newFilePath = FileUtil.createNewXlsxFile(rootPath, realName, task.getType());
 
         // 创建写工作簿对象
         ExcelWriterBuilder writerBuilder = EasyExcel.write(newFilePath).registerWriteHandler(new I18nCellWriteHandler(messageSource, locale));
@@ -144,10 +204,10 @@ public abstract class EXTExcelBaseExecutor<T> {
                     // 查询数据
                     // 设置分页参数
                     if (pageNumberField != null){
-                        pageNumberField.set(param.getParams(),pageNumber++);
+                        pageNumberField.set(param,pageNumber++);
                     }
                     if (pageSizeField != null){
-                        pageSizeField.set(param.getParams(),pageSize);
+                        pageSizeField.set(param,pageSize);
                     }
 
                     Collection<?> result = null;
@@ -156,7 +216,6 @@ public abstract class EXTExcelBaseExecutor<T> {
 
                     } catch (Exception e) {
                         e.printStackTrace();
-                        throw new RuntimeException(e.getMessage());
                     }
 
                     // 写入数据
@@ -187,10 +246,62 @@ public abstract class EXTExcelBaseExecutor<T> {
                 }
             }
         } catch (Exception e) {
-            e.printStackTrace();
             throw new RuntimeException(e);
         }
         return newFilePath;
     }
 
+    /**
+     *
+     * @param submit
+     * @return
+     */
+    private PoiTask<T> transRequest2Task(ExtSubmit submit){
+        PoiTask<T> task = new PoiTask<>();
+        task.setExecutorName(submit.getExecutorName());
+        task.setCreateTime(new Date());
+        task.setStatus(POICodeConstants.IMT_TASK_STATUS_WAIT);
+        task.setTaskId(TaskIdUtil.nextId());
+        if (getTypeReference()==null){
+            task.setExtend(JSON.parseObject(submit.getParams(), tClazz));
+        }else {
+            task.setExtend(JSON.parseObject(submit.getParams(), getTypeReference()));
+        }
+        return task;
+    }
+
+    /**
+     * 更新任务状态
+     * @param taskId
+     * @param status
+     * @return
+     */
+    private PoiTask<T> updateTaskStatus(Long taskId, Long status){
+        return taskMap.compute(taskId,(k,v)->{
+            if (v == null){
+                return null;
+            }
+            v.setStatus(status);
+            return v;
+        });
+    }
+
+
+    /**
+     * 结束任务钩子
+     * @param task
+     */
+    public abstract void finishTaskHook(PoiTask<T> task);
+
+    /**
+     * 创建任务钩子
+     * @param task
+     */
+    public abstract void createTaskHook(PoiTask<T> task);
+
+    /**
+     * 获取泛型类型
+     * @return
+     */
+    public abstract TypeReference<T> getTypeReference();
 }

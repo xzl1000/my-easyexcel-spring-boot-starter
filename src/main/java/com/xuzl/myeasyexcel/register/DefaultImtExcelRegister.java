@@ -1,56 +1,49 @@
-package com.xuzl.myeasyexcel.config;
+package com.xuzl.myeasyexcel.register;
 
 import com.xuzl.myeasyexcel.annotation.IMTExcel;
+import com.xuzl.myeasyexcel.common.ImtExcelProperties;
+import com.xuzl.myeasyexcel.common.NamedThreadFactory;
 import com.xuzl.myeasyexcel.common.POICodeConstants;
+import com.xuzl.myeasyexcel.config.ExecutorProperties;
 import com.xuzl.myeasyexcel.executor.IMTBaseExecutor;
-import com.xuzl.myeasyexcel.router.IMTRouter;
 import com.xuzl.myeasyexcel.utils.ReflectUtils;
 import org.springframework.beans.factory.config.BeanDefinition;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.MessageSource;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.core.type.filter.AnnotationTypeFilter;
 
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Map;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author xuzl
  * @version 1.0.0
- * @ClassName IMTExecutorConfiguration.java
+ * @ClassName DefaultImtExcelRegister.java
  * @Description TODO
- * @createTime 2023-05-15 18:21
+ * @createTime 2023-10-12 11:43
  */
-@Configuration
-@EnableConfigurationProperties(IMTExecutorProperties.class)
-public class IMTExecutorConfiguration {
-
-//    Log log = Log.getLogger(IMTExecutorConfiguration.class);
-
-    IMTExecutorProperties imtExecutorProperties;
+public class DefaultImtExcelRegister implements ImtExcelRegister{
 
     private final ApplicationContext applicationContext;
 
     private final MessageSource messageSource;
 
-    public IMTExecutorConfiguration(IMTExecutorProperties imtExecutorProperties, ApplicationContext applicationContext, MessageSource messageSource) {
-        this.imtExecutorProperties = imtExecutorProperties;
+//    Log log = Log.getLogger(DefaultImtExcelRegister.class);
+
+    public DefaultImtExcelRegister(ApplicationContext applicationContext, MessageSource messageSource) {
         this.applicationContext = applicationContext;
         this.messageSource = messageSource;
     }
 
-
-    @Bean
-    @ConditionalOnProperty(prefix = "poi.excel.imt", name = "enable", havingValue = "true")
-    public IMTRouter registerImtExecutor() {
-        Map<String, IMTBaseExecutor<?>> executorMap = new HashMap<>();
-        String scanPackage = imtExecutorProperties.getScanPackage();
+    @Override
+    public HashMap<Object, IMTBaseExecutor<?, ?>> register(ExecutorProperties executorProperties) {
+        HashMap<Object, IMTBaseExecutor<?, ?>> executorMap = new HashMap<>();
+        String scanPackage = executorProperties.getScanPackage();
         if (scanPackage == null || scanPackage.length() == 0) {
             throw new RuntimeException("scanPackage can not be null!");
         }
@@ -73,16 +66,24 @@ public class IMTExecutorConfiguration {
                 }
 
                 // 从容器中获取bean
-                IMTBaseExecutor<?> executor = (IMTBaseExecutor<?>) applicationContext.getBean(clazz);
+                IMTBaseExecutor<?, ?> executor = (IMTBaseExecutor<?, ?>) applicationContext.getBean(clazz);
 
                 // 反射设置父类私有属性
-                Class<?> superclass = clazz.getSuperclass();
-                Field imtProperty = superclass.getDeclaredField(POICodeConstants.IMT_PROPERTY_FIELD_NAME);
-                Field messageSource = superclass.getDeclaredField(POICodeConstants.MESSAGE_SOURCE_FIELD_NAME);
-                Field clazzField = superclass.getDeclaredField(POICodeConstants.PARAM_CLAZZ_FIELD_NAME);
+                Class<?> baseClass = IMTBaseExecutor.class;
+                Field imtProperty = baseClass.getDeclaredField(POICodeConstants.IMT_PROPERTY_FIELD_NAME);
+                Field messageSource = baseClass.getDeclaredField(POICodeConstants.MESSAGE_SOURCE_FIELD_NAME);
+                Field clazzField = baseClass.getDeclaredField(POICodeConstants.PARAM_CLAZZ_FIELD_NAME);
+                Field rClazzField = baseClass.getDeclaredField("rClazz");
+                Field threadPoolExecutorField = baseClass.getDeclaredField(POICodeConstants.THREAD_POOL);
+
+                ImtExcelProperties properties = new ImtExcelProperties();
+                properties.setExecutorName(executorName);
+                properties.setType(imtExcel.type());
+                properties.setStartRowNumber(imtExcel.startRowNumber());
+                properties.setMaxActiveThread(imtExcel.maxActiveThread());
 
                 imtProperty.setAccessible(true);
-                imtProperty.set(executor, imtExcel);
+                imtProperty.set(executor, properties);
 
                 messageSource.setAccessible(true);
                 messageSource.set(executor, this.messageSource);
@@ -90,6 +91,24 @@ public class IMTExecutorConfiguration {
                 // 设置clazz为泛型T的类型
                 clazzField.setAccessible(true);
                 clazzField.set(executor, ReflectUtils.getGenericClass(executor.getClass()));
+
+                rClazzField.setAccessible(true);
+                rClazzField.set(executor, ReflectUtils.getGenericClass(executor.getClass(), 1));
+
+                int coreSize = imtExcel.maxActiveThread();
+
+                // 创建线程池
+                ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(
+                        coreSize, // 核心线程数
+                        coreSize, // 最大线程数
+                        30, // 空闲线程存活时间
+                        TimeUnit.SECONDS, // 时间单位
+                        new LinkedBlockingQueue<>(),
+                        new NamedThreadFactory("imt-"+imtExcel.value()));
+
+                // 设置属性
+                threadPoolExecutorField.setAccessible(true);
+                threadPoolExecutorField.set(executor,threadPoolExecutor);
 
                 executorMap.put(executorName, executor);
             } catch (Exception e) {
@@ -99,9 +118,6 @@ public class IMTExecutorConfiguration {
         }
 
 //        log.info("--------------------------init imt executor success,executorMap:{}", Arrays.toString(executorMap.keySet().toArray()));
-
-        return new IMTRouter(executorMap);
-
+        return executorMap;
     }
-
 }
