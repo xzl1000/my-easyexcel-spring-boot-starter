@@ -1,7 +1,7 @@
 package com.xuzl.myeasyexcel.utils;
 
 
-import com.shuabao.foundation.poi.common.POICodeConstants;
+import com.xuzl.myeasyexcel.common.POICodeConstants;
 
 import java.io.File;
 import java.io.IOException;

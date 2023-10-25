@@ -4,8 +4,8 @@ import com.alibaba.excel.metadata.Head;
 import com.alibaba.excel.write.handler.CellWriteHandler;
 import com.alibaba.excel.write.metadata.holder.WriteSheetHolder;
 import com.alibaba.excel.write.metadata.holder.WriteTableHolder;
-import com.shuabao.foundation.utils.PlaceholderResolver;
-import org.apache.commons.collections.CollectionUtils;
+import com.xuzl.myeasyexcel.utils.PlaceholderResolver;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.poi.ss.usermodel.Row;
 import org.springframework.context.MessageSource;
 
